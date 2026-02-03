@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Password Manager Bree</title>
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background:#081426;
+  color:white;
+  margin:0;
+  padding:10px;
+}
+h1 { text-align:center; color:cyan; margin-bottom:15px; }
+.box {
+  background:#102542;
+  padding:15px;
+  border-radius:15px;
+  width:100%;
+  max-width:520px;
+  margin:auto 0 20px auto;
+  box-shadow:0 0 10px black;
+  box-sizing:border-box;
+}
+input {
+  width:100%;
+  padding:10px;
+  margin:6px 0;
+  border-radius:10px;
+  border:none;
+  font-size:15px;
+  box-sizing:border-box;
+}
+button {
+  padding:10px;
+  border-radius:10px;
+  border:none;
+  font-size:14px;
+  font-weight:bold;
+  cursor:pointer;
+  box-sizing:border-box;
+}
+.btn-main { background:cyan; color:black; width:100%; margin-top:10px; }
+.tab-menu {
+  display:flex;
+  gap:5px;
+  margin-bottom:15px;
+  flex-wrap:wrap;
+}
+.tab-btn {
+  flex:1;
+  background:#1d3557;
+  color:white;
+  text-align:center;
+  padding:10px;
+  border-radius:10px;
+}
+.tab-btn.active { background:cyan; color:black; }
+.akun {
+  background:#1d3557;
+  padding:12px;
+  border-radius:12px;
+  margin-top:10px;
+}
+.akun p { margin:4px 0; font-size:14px; word-wrap:break-word; }
+.btn-row {
+  display:flex;
+  gap:5px;
+  flex-wrap:wrap;
+  margin-top:8px;
+}
+.btn-small { flex:1; padding:8px; font-size:13px; }
+.btn-copy { background:orange; color:black; }
+.btn-edit { background:#ffb347; color:black; }
+.btn-hapus { background:red; color:white; }
+.btn-backup { background:gold; color:black; width:100%; margin-top:10px; }
+</style>
+</head>
+<body>
+
+<h1>🔐 Password Manager Bree</h1>
+
+<!-- LOGIN -->
+<div class="box" id="loginBox">
+  <h2>Masukkan / Buat PIN Master</h2>
+  <div style="display:flex; gap:5px;">
+    <input type="password" id="pinInput" placeholder="PIN (4-6 angka)" inputmode="numeric" maxlength="6" style="flex:2;">
+    <button class="btn-main" onclick="login()" style="flex:1;">Masuk</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="box" id="appBox" style="display:none;">
+  <div class="tab-menu">
+    <button class="tab-btn active" id="tabTambah" onclick="showTab('tambah')">➕ Tambah</button>
+    <button class="tab-btn" id="tabDaftar" onclick="showTab('daftar')">📌 Daftar</button>
+    <button class="tab-btn" id="tabBackup" onclick="showTab('backup')">📂 Backup</button>
+    <button class="tab-btn" id="tabPIN" onclick="showTab('pin')">🔑 PIN</button>
+  </div>
+
+  <!-- TAB TAMBAH -->
+  <div id="tabTambahBox">
+    <h2>Tambah Akun Baru</h2>
+    <input type="text" id="namaAkun" placeholder="1. Nama Akun">
+    <input type="text" id="hashtagAkun" placeholder="2. Hashtag Akun (#XXXX)">
+    <input type="text" id="thAkun" placeholder="3. TH Akun (TH12)">
+    <input type="text" id="emailAkun" placeholder="4. Email Akun">
+    <input type="text" id="passAkun" placeholder="5. Password Akun">
+    <button class="btn-main" onclick="simpanAkun()">💾 Simpan Akun</button>
+  </div>
+
+  <!-- TAB DAFTAR -->
+  <div id="tabDaftarBox" style="display:none;">
+    <h2>📌 Daftar Akun</h2>
+    <input type="text" id="searchInput" placeholder="Cari akun..." onkeyup="tampilkanAkun()">
+    <div id="listAkun"></div>
+  </div>
+
+  <!-- TAB BACKUP -->
+  <div id="tabBackupBox" style="display:none;">
+    <h2>📂 Backup</h2>
+    <button class="btn-backup" onclick="exportJSON()">📤 Export JSON</button>
+    <button class="btn-backup" onclick="exportTXT()">📝 Export TXT</button>
+    <button class="btn-backup" onclick="bukaDrive()">☁️ Login / Buka Google Drive</button>
+    <input type="file" id="importFile" accept=".json" onchange="importData()">
+    <p style="font-size:13px; color:lightgray; margin-top:5px;">
+      Setelah file tersimpan di Download, klik tombol Google Drive untuk upload manual.
+    </p>
+  </div>
+
+  <!-- TAB PIN -->
+  <div id="tabPINBox" style="display:none;">
+    <h2>🔑 Ganti PIN Master</h2>
+    <input type="password" id="oldPin" placeholder="PIN Lama">
+    <input type="password" id="newPin" placeholder="PIN Baru">
+    <button class="btn-main" onclick="gantiPIN()">💾 Ganti PIN</button>
+  </div>
+</div>
+
+<script>
+let pinMaster = localStorage.getItem("pinMaster");
+let akunData = JSON.parse(localStorage.getItem("akunData")) || [];
+
+/* LOGIN */
+function login() {
+  let pin = pinInput.value;
+  if(!pinMaster){
+    localStorage.setItem("pinMaster", pin);
+    pinMaster = pin;
+    alert("✅ PIN Master dibuat!");
+  }
+  if(pin === pinMaster){
+    loginBox.style.display="none";
+    appBox.style.display="block";
+    tampilkanAkun();
+  } else {
+    alert("❌ PIN salah!");
+  }
+}
+
+/* TAB */
+function showTab(tab){
+  tabTambahBox.style.display = tab==="tambah"?"block":"none";
+  tabDaftarBox.style.display = tab==="daftar"?"block":"none";
+  tabBackupBox.style.display = tab==="backup"?"block":"none";
+  tabPINBox.style.display = tab==="pin"?"block":"none";
+
+  tabTambah.classList.toggle("active", tab==="tambah");
+  tabDaftar.classList.toggle("active", tab==="daftar");
+  tabBackup.classList.toggle("active", tab==="backup");
+  tabPIN.classList.toggle("active", tab==="pin");
+}
+
+/* SIMPAN */
+function simpanAkun(){
+  if(!namaAkun.value || !passAkun.value){
+    alert("⚠ Isi semua kolom dulu!");
+    return;
+  }
+  akunData.push({
+    nama:namaAkun.value,
+    hashtag:hashtagAkun.value,
+    th:thAkun.value,
+    email:emailAkun.value,
+    pass:passAkun.value
+  });
+  localStorage.setItem("akunData", JSON.stringify(akunData));
+  alert("✅ Akun tersimpan!");
+  tampilkanAkun();
+  showTab("daftar");
+  namaAkun.value="";
+  hashtagAkun.value="";
+  thAkun.value="";
+  emailAkun.value="";
+  passAkun.value="";
+}
+
+/* TAMPILKAN */
+function tampilkanAkun(){
+  let search = searchInput.value.toLowerCase();
+  listAkun.innerHTML="";
+  akunData.filter(a =>
+    a.nama.toLowerCase().includes(search) ||
+    a.hashtag.toLowerCase().includes(search) ||
+    a.th.toLowerCase().includes(search)
+  ).forEach((akun,index)=>{
+    listAkun.innerHTML += `
+      <div class="akun">
+        <p><b>Nama:</b> ${akun.nama}</p>
+        <p><b>Hashtag:</b> ${akun.hashtag}</p>
+        <p><b>TH:</b> ${akun.th}</p>
+        <p><b>Email:</b> ${akun.email}</p>
+        <p><b>Password:</b> ${akun.pass}</p>
+        <div class="btn-row">
+          <button class="btn-small btn-copy" onclick="copyText('${akun.pass}')">📋 Copy PW</button>
+          <button class="btn-small btn-edit" onclick="editAkun(${index})">✏️ Edit</button>
+          <button class="btn-small btn-hapus" onclick="hapusAkun(${index})">🗑 Hapus</button>
+        </div>
+      </div>
+    `;
+  });
+}
+
+/* COPY */
+function copyText(text){
+  navigator.clipboard.writeText(text);
+  alert("✅ Dicopy!");
+}
+
+/* EDIT */
+function editAkun(index){
+  let akun = akunData[index];
+  akun.nama = prompt("Nama:", akun.nama);
+  akun.hashtag = prompt("Hashtag:", akun.hashtag);
+  akun.th = prompt("TH:", akun.th);
+  akun.email = prompt("Email:", akun.email);
+  akun.pass = prompt("Password:", akun.pass);
+  localStorage.setItem("akunData", JSON.stringify(akunData));
+  tampilkanAkun();
+}
+
+/* HAPUS */
+function hapusAkun(index){
+  if(confirm("Yakin hapus akun?")){
+    akunData.splice(index,1);
+    localStorage.setItem("akunData", JSON.stringify(akunData));
+    tampilkanAkun();
+  }
+}
+
+/* EXPORT JSON */
+function exportJSON(){
+  let blob = new Blob([JSON.stringify(akunData,null,2)], {type:"application/json"});
+  let link=document.createElement("a");
+  link.href=URL.createObjectURL(blob);
+  link.download="backup-akun.json";
+  link.click();
+}
+
+/* EXPORT TXT */
+function exportTXT(){
+  let text="";
+  akunData.forEach((a,i)=>{
+    text += `AKUN ${i+1}\nNama:${a.nama}\nEmail:${a.email}\nPW:${a.pass}\n\n`;
+  });
+  let blob=new Blob([text], {type:"text/plain"});
+  let link=document.createElement("a");
+  link.href=URL.createObjectURL(blob);
+  link.download="backup-akun.txt";
+  link.click();
+}
+
+/* BUKA GOOGLE DRIVE */
+function bukaDrive(){
+  window.open("https://drive.google.com/drive/my-drive","_blank");
+}
+
+/* IMPORT */
+function importData(){
+  let file = importFile.files[0];
+  let reader = new FileReader();
+  reader.onload=function(e){
+    akunData = JSON.parse(e.target.result);
+    localStorage.setItem("akunData", JSON.stringify(akunData));
+    tampilkanAkun();
+    alert("✅ Restore berhasil!");
+  };
+  reader.readAsText(file);
+}
+
+/* GANTI PIN */
+function gantiPIN(){
+  if(oldPin.value !== pinMaster){
+    alert("❌ PIN lama salah!");
+    return;
+  }
+  pinMaster = newPin.value;
+  localStorage.setItem("pinMaster", pinMaster);
+  alert("✅ PIN diganti!");
+}
+
+/* AUTO LOCK */
+window.onload = ()=>{
+  loginBox.style.display="block";
+  appBox.style.display="none";
+};
+</script>
+</body>
+</html>
